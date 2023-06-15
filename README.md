@@ -51,4 +51,4 @@ http://localhost:8053/swagger-ui/index.html
 - [GET] /api/usuario/{id} Retorna um usuário | permissão: LEITURA_USUARIO
 
 Depois que fizer a prova, pode rodar os testes da classe UsuarioControllerTest
-para conferir se os testes estão passando
+para conferir se os testes estão passando.
