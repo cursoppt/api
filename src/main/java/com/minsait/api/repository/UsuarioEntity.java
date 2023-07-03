@@ -37,4 +37,19 @@ public class UsuarioEntity {
 
     @Column(name = "PERMISSOES")
     private String permissoes;
+
+    public Specification<UsuarioEntity> ususarioEntitySpecification() {
+
+        return (root, query, criteriaBuilder) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (this.getNome() != null) {
+
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("nome")),
+                        "%" + this.getNome().trim().toLowerCase() + "%"));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }
