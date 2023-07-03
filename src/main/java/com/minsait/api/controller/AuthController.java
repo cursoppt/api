@@ -2,6 +2,7 @@ package com.minsait.api.controller;
 
 import com.minsait.api.controller.dto.GetTokenRequest;
 import com.minsait.api.controller.dto.GetTokenResponse;
+import com.minsait.api.repository.UsuarioEntity;
 import com.minsait.api.repository.UsuarioRepository;
 import com.minsait.api.sicurity.util.JWTUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,15 +33,32 @@ public class AuthController {
     public ResponseEntity<GetTokenResponse> getToken(@RequestBody GetTokenRequest request){
         if(request.getPassword().equals("12345") && request.getUserName().equals("root")){
             final ArrayList<String> permissions = new ArrayList<>();
-            permissions.add("LEITURA_CLIENTE");
-            permissions.add("ESCRITA_CLIENTE");
+            permissions.add("LEITURA_USUARIO");
+            permissions.add("ESCRITA_USUARIO");
+
+            UsuarioEntity usuarioEncontrado = usuarioRepository.findByLogin(request.getUserName());
 
             final var token =jwtUtil.generateToken("admin", permissions, 5);
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+            encoder.matches(request.getPassword(), usuarioEncontrado.getSenha());
             return new ResponseEntity<>(GetTokenResponse.builder()
                     .accessToken(token)
                     .build(), HttpStatus.OK);
         }else{
-            return new ResponseEntity<>(GetTokenResponse.builder().build(), HttpStatus.UNAUTHORIZED);
+            UsuarioEntity usuarioEncontrado = usuarioRepository.findByLogin(request.getUserName());
+
+            final var usuarioEntityFound = usuarioRepository.findById(usuarioEncontrado.getId());
+            if(usuarioEntityFound.isEmpty()){
+                return new ResponseEntity<>(GetTokenResponse.builder().build(), HttpStatus.NOT_FOUND);
+            }
+            final ArrayList<String> permissions = new ArrayList<>(List.of(usuarioEncontrado.getPermissoes().split(",")));
+
+            final var token =jwtUtil.generateToken(usuarioEncontrado.getLogin(), permissions, Math.toIntExact(usuarioEncontrado.getId()));
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+            encoder.matches(request.getPassword(), usuarioEncontrado.getSenha());
+            return new ResponseEntity<>(GetTokenResponse.builder()
+                    .accessToken(token)
+                    .build(), HttpStatus.OK);
         }
     }
 }
