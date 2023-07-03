@@ -1,10 +1,10 @@
 package com.minsait.api.controller;
 
-import com.minsait.api.controller.dto.ClienteRequest;
-import com.minsait.api.controller.dto.ClienteResponse;
-import com.minsait.api.controller.dto.MessageResponse;
+import com.minsait.api.controller.dto.*;
 import com.minsait.api.repository.ClienteEntity;
 import com.minsait.api.repository.ClienteRepository;
+import com.minsait.api.repository.UsuarioEntity;
+import com.minsait.api.repository.UsuarioRepository;
 import com.minsait.api.util.ObjectMapperUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,8 @@ public class ApiController implements ApiSwagger{
 
 	@Autowired
 	private ClienteRepository clienteRepository;
+	@Autowired
+	private UsuarioRepository usuarioRepository;
 
 	@PreAuthorize("hasAuthority('LEITURA_CLIENTE')")
 	@GetMapping("/cliente")
@@ -103,5 +106,95 @@ public class ApiController implements ApiSwagger{
 		}
 
 		return new ResponseEntity<>(clienteResponse, HttpStatus.OK);
+	}
+
+	@PreAuthorize("hasAuthority('LEITURA_USUARIO')")
+	@GetMapping("/usuario")
+	public ResponseEntity<Page<UsuarioResponse>> usuarioFindAll(@RequestParam(required = false) String nome,
+																@RequestParam(required = false, defaultValue = "0") int page,
+																@RequestParam(required = false, defaultValue = "10") int pageSize) {
+		final var usuarioEntity = new UsuarioEntity();
+		usuarioEntity.setLogin(nome);
+		Pageable pageable = PageRequest.of(page, pageSize);
+
+		final Page<UsuarioEntity> usuarioEntityListPage = usuarioRepository.findAll(usuarioEntity.ususarioEntitySpecification(), pageable);
+		final  Page<UsuarioResponse> usuarioResponseList = ObjectMapperUtil.mapAll(usuarioEntityListPage, UsuarioResponse.class);
+		return ResponseEntity.ok(usuarioResponseList);
+	}
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@PostMapping("/usuario")
+	public ResponseEntity<UsuarioResponse> insertUser(@RequestBody UsuarioRequest request){
+
+		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+		String senha = encoder.encode(request.getSenha());
+		final var usuarioEntity = ObjectMapperUtil.map(request, UsuarioEntity.class);
+		usuarioEntity.setSenha(senha);
+		final var usuarioInserted = usuarioRepository.save(usuarioEntity);
+		final var usuarioResponse = ObjectMapperUtil.map(usuarioInserted, UsuarioResponse.class);
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.CREATED);
+	}
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@PutMapping("/usuario")
+	public ResponseEntity<UsuarioResponse> updateUser(@RequestBody UsuarioRequest request){
+		final var usuarioEntityFound = usuarioRepository.findById(request.getId());
+		if(usuarioEntityFound.isEmpty()){
+			return new ResponseEntity<>(new UsuarioResponse(), HttpStatus.NOT_FOUND);
+		}
+
+		final var usuarioEntity = ObjectMapperUtil.map(request, UsuarioEntity.class);
+
+		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+		String senha = null;
+		if (request.getSenha() == null) {
+			senha = encoder.encode(usuarioEntityFound.get().getSenha());
+		} else {
+			senha = encoder.encode(request.getSenha());
+		}
+
+		usuarioEntity.setSenha(senha);
+
+		final var usuarioUpdated = usuarioRepository.save(usuarioEntity);
+		final var usuarioResponse = ObjectMapperUtil.map(usuarioUpdated, UsuarioResponse.class);
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.OK);
+	}
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@DeleteMapping("/usuario/{id}")
+	public ResponseEntity<MessageResponse> deleteUser(@PathVariable Long id){
+		final var usuarioEntityFound = usuarioRepository.findById(id);
+		if(usuarioEntityFound.isPresent()){
+			usuarioRepository.delete(usuarioEntityFound.get());
+		}else{
+			return new ResponseEntity<>(MessageResponse.builder()
+					.message("Usuario não encontrado!")
+					.date(LocalDateTime.now())
+					.error(false)
+					.build(), HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(MessageResponse.builder()
+				.message("OK")
+				.date(LocalDateTime.now())
+				.error(false)
+				.build(), HttpStatus.OK);
+	}
+
+	@PreAuthorize("hasAuthority('LEITURA_USUARIO')")
+	@GetMapping("/usuario/{id}")
+	public ResponseEntity<UsuarioResponse> findUsuarioById(@PathVariable Long id){
+		final var usuarioEntity = usuarioRepository.findById(id);
+		UsuarioResponse usuarioResponse = new UsuarioResponse();
+
+		if (usuarioEntity.isPresent()){
+			usuarioResponse = ObjectMapperUtil.map(usuarioEntity.get(), UsuarioResponse.class);
+		}else{
+			return new ResponseEntity<>(usuarioResponse, HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.OK);
 	}
 }
