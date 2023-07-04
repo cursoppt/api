@@ -3,6 +3,7 @@ package com.minsait.api.controller;
 import com.minsait.api.controller.dto.ClienteRequest;
 import com.minsait.api.controller.dto.ClienteResponse;
 import com.minsait.api.controller.dto.MessageResponse;
+import com.minsait.api.controller.dto.UsuarioResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,4 +64,12 @@ public interface ApiSwagger {
         }
     )
     public ResponseEntity<ClienteResponse> findById(Long id);
+
+    @Operation(summary = "Busca todos os registros", responses = {
+            @ApiResponse(responseCode = "200", description = "Dados do registro retornados com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros inválidos"),
+            @ApiResponse(responseCode = "500", description = "Erro interno"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"), })
+    public ResponseEntity<Page<UsuarioResponse>> findAllUsuario(String nome, String login, String email, int page,
+                                                         int pageSize);
 }

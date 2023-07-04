@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import javax.persistence.*;
 import javax.persistence.criteria.Predicate;
@@ -37,4 +38,38 @@ public class UsuarioEntity {
 
     @Column(name = "PERMISSOES")
     private String permissoes;
+
+
+    public void setSenhaAndEncode(String senha) {
+        if (senha != null) {
+            BCryptPasswordEncoder senhaAndEncoder = new BCryptPasswordEncoder();
+            senha = senhaAndEncoder.encode(senha);
+        }
+
+        this.senha = senha;
+    }
+
+    public Specification<UsuarioEntity> usuarioEntitySpecification() {
+        return (root, query, criteriaBuilder) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (this.getNome() != null) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("nome")),
+                        "%" + this.getNome().trim().toLowerCase() + "%"));
+            }
+
+            if (this.getLogin() != null) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("login")),
+                        "%" + this.getLogin().trim().toLowerCase() + "%"));
+            }
+
+            if (this.getEmail() != null) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
+                        "%" + this.getEmail().trim().toLowerCase() + "%"));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }
