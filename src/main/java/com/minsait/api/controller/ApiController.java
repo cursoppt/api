@@ -1,10 +1,10 @@
 package com.minsait.api.controller;
 
-import com.minsait.api.controller.dto.ClienteRequest;
-import com.minsait.api.controller.dto.ClienteResponse;
-import com.minsait.api.controller.dto.MessageResponse;
+import com.minsait.api.controller.dto.*;
 import com.minsait.api.repository.ClienteEntity;
 import com.minsait.api.repository.ClienteRepository;
+import com.minsait.api.repository.UsuarioEntity;
+import com.minsait.api.repository.UsuarioRepository;
 import com.minsait.api.util.ObjectMapperUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +18,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @RestController
@@ -103,5 +105,92 @@ public class ApiController implements ApiSwagger{
 		}
 
 		return new ResponseEntity<>(clienteResponse, HttpStatus.OK);
+	}
+
+
+	@Autowired
+	private UsuarioRepository usuarioRepository;
+
+	@PreAuthorize("hasAuthority('LEITURA_USUARIO')")
+	@GetMapping("/usuario")
+	public ResponseEntity<Page<UsuarioResponse>> findAllUsuario(@RequestParam(required = false) String nome,
+														 @RequestParam(required = false) String login,
+														 @RequestParam(required = false) String email,
+														 @RequestParam(required = false, defaultValue = "0") int page,
+														 @RequestParam(required = false, defaultValue = "10") int pageSize) {
+		final var usuarioEntity = new UsuarioEntity();
+		usuarioEntity.setLogin(login);
+		usuarioEntity.setEmail(email);
+		Pageable pageable = PageRequest.of(page, pageSize);
+
+		final Page<UsuarioEntity> usuarioEntityListPage = usuarioRepository.findAll(usuarioEntity.usuarioEntitySpecification(), pageable);
+		final  Page<UsuarioResponse> usuarioResponseList = ObjectMapperUtil.mapAll(usuarioEntityListPage, UsuarioResponse.class);
+		return ResponseEntity.ok(usuarioResponseList);
+	}
+
+	@PreAuthorize("hasAuthority('LEITURA_USUARIO')")
+	@GetMapping("/usuario/{id}")
+	public ResponseEntity<UsuarioResponse> findByIdUsuario(@PathVariable Long id){
+		final var usuarioEntity = usuarioRepository.findById(id);
+		UsuarioResponse usuarioResponse = new UsuarioResponse();
+
+		if (usuarioEntity.isPresent()){
+			usuarioResponse = ObjectMapperUtil.map(usuarioEntity.get(), UsuarioResponse.class);
+		}else{
+			return new ResponseEntity<>(usuarioResponse, HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.OK);
+	}
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@PostMapping("/usuario")
+	public ResponseEntity<UsuarioResponse> insertUsuario(@RequestBody UsuarioRequest request){
+
+		final var usuarioEntity = ObjectMapperUtil.map(request, UsuarioEntity.class);
+		usuarioEntity.setSenhaAndEncode(request.getSenha());
+
+		final var usuarioInserted = usuarioRepository.save(usuarioEntity);
+		final var usuarioResponse = ObjectMapperUtil.map(usuarioInserted, UsuarioResponse.class);
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.CREATED);
+	}
+
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@PutMapping("/usuario")
+	public ResponseEntity<UsuarioResponse> updateUsuario(@RequestBody UsuarioRequest request){
+		final var usuarioEntity = ObjectMapperUtil.map(request, UsuarioEntity.class);
+		final var usuarioEntityFound = usuarioRepository.findById(usuarioEntity.getId());
+
+		if (usuarioEntityFound.isEmpty()) {
+			return new ResponseEntity<>(new UsuarioResponse(), HttpStatus.NOT_FOUND);
+		}
+		final var usuarioUpdated = usuarioRepository.save(usuarioEntity);
+
+		final var usuarioResponse = ObjectMapperUtil.map(usuarioUpdated, UsuarioResponse.class);
+
+		return new ResponseEntity<>(usuarioResponse, HttpStatus.OK);
+	}
+
+	@PreAuthorize("hasAuthority('ESCRITA_USUARIO')")
+	@DeleteMapping("/usuario/{id}")
+	public ResponseEntity<MessageResponse> deleteUsuario(@PathVariable Long id){
+		final var usuarioEntityFound = usuarioRepository.findById(id);
+		if(usuarioEntityFound.isPresent()){
+			usuarioRepository.delete(usuarioEntityFound.get());
+		}else{
+			return new ResponseEntity<>(MessageResponse.builder()
+					.message("Usuario não encontrado!")
+					.date(LocalDateTime.now())
+					.error(false)
+					.build(), HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(MessageResponse.builder()
+				.message("OK")
+				.date(LocalDateTime.now())
+				.error(false)
+				.build(), HttpStatus.OK);
 	}
 }
