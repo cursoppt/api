@@ -2,6 +2,8 @@ package com.minsait.api.controller;
 
 import com.minsait.api.controller.dto.GetTokenRequest;
 import com.minsait.api.controller.dto.GetTokenResponse;
+import com.minsait.api.controller.dto.UsuarioRequest;
+import com.minsait.api.repository.UsuarioEntity;
 import com.minsait.api.repository.UsuarioRepository;
 import com.minsait.api.sicurity.util.JWTUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(value = "/auth")
@@ -30,17 +33,31 @@ public class AuthController {
 
     @PostMapping("/get-token")
     public ResponseEntity<GetTokenResponse> getToken(@RequestBody GetTokenRequest request){
-        if(request.getPassword().equals("12345") && request.getUserName().equals("root")){
-            final ArrayList<String> permissions = new ArrayList<>();
-            permissions.add("LEITURA_CLIENTE");
-            permissions.add("ESCRITA_CLIENTE");
+    	 BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    	 
+         Optional<UsuarioEntity> usuarioEntity = Optional.ofNullable(usuarioRepository.findByLogin(request.getUserName()));
 
-            final var token =jwtUtil.generateToken("admin", permissions, 5);
-            return new ResponseEntity<>(GetTokenResponse.builder()
-                    .accessToken(token)
-                    .build(), HttpStatus.OK);
-        }else{
-            return new ResponseEntity<>(GetTokenResponse.builder().build(), HttpStatus.UNAUTHORIZED);
-        }
+         if (usuarioEntity.isPresent()) {
+             UsuarioEntity usuario = usuarioEntity.get();
+             boolean isIdenticalPassword = encoder.matches(request.getPassword(), usuario.getSenha());
+
+             if (isIdenticalPassword) {
+                 int userId = Math.toIntExact(usuario.getId());
+                 String[] usuarioPermissions = usuario.getPermissoes().split(",");
+                 ArrayList<String> permissions = new ArrayList<>(List.of(usuarioPermissions));
+
+                 String token = jwtUtil.generateToken(usuario.getLogin(), permissions, userId);
+
+                 GetTokenResponse response = GetTokenResponse.builder()
+                         .accessToken(token)
+                         .build();
+
+                 return new ResponseEntity<>(response, HttpStatus.OK);
+             } else {
+                 return new ResponseEntity<>(GetTokenResponse.builder().build(), HttpStatus.UNAUTHORIZED);
+             }
+         } else {
+             return new ResponseEntity<>(GetTokenResponse.builder().build(), HttpStatus.UNAUTHORIZED);
+         }
     }
 }

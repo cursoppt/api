@@ -173,7 +173,7 @@ class UsuarioControllerTest {
         final var usuarioAlterado = usuarioRepository.findByLogin(request.getLogin());
         assertEquals(request.getNome(), usuarioAlterado.getNome());
 
-        //verifica se a senha foi alerada no banco
+        //verifica se a senha foi alterada no banco
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         assertTrue(encoder.matches(request.getSenha(), usuarioAlterado.getSenha()));
 

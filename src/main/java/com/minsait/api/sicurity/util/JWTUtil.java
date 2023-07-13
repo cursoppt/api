@@ -18,11 +18,11 @@ public class JWTUtil {
     @Value("${security.enabled}")
     private String securityEnabled;
 
-    public String generateToken(String username, ArrayList<String> authorities, Integer user_id) {
+    public String generateToken(String username, ArrayList<String> authorities, Integer i) {
         return Jwts.builder()
                 .claim("user_name",username)
                 .claim("authorities",authorities)
-                .claim("user_id", user_id)
+                .claim("user_id", i)
                 .setExpiration(new Date(System.currentTimeMillis() + 600000))
                 .signWith(SignatureAlgorithm.HS512, this.jwtSecret.getBytes())
                 .compact();
